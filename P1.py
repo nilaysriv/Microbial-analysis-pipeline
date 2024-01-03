@@ -11,45 +11,39 @@ from skbio.stats.ordination import PCoA
 from scipy.stats import mannwhitneyu  # Import Mann-Whitney U test
 
 def main():
-    """Main function to execute the entire pipeline."""
 
-    # Update and install prerequisites
+    #Istall prerequisites
     os.system("sudo apt upgrade")
     os.system("sudo apt update")
     os.system("sudo apt install build-essential")
     os.system("sudo apt install R-base-core")
 
-    # Prompt for input files
+    #Imput
     fastq1 = input("Enter the first FASTQ file: ")
     fastq2 = input("Enter the second FASTQ file: ")
 
-    # Perform profiling with Greengenes and SILVA databases
+    #Profiling with Greengenes and SILVA databases
     for database in ("G", "S"):
         output_dir = f"Results_{'Greengenes' if database == 'G' else 'SILVA'}"
         os.system(f"PM-parallel-meta -R {fastq1} {fastq2} -o {output_dir} -l 150 -D {database}")
-
-    # Create list.txt with paths to classification.txt files
+    
     with open("list.txt", "w") as f:
         for database in ("Greengenes", "SILVA"):
             output_path = f"Results_{database}/classification.txt"
             f.write(f"{database}\t{output_path}\n")
 
-    # Perform taxonomic classification and functional profiling
+    #Taxonomic classification and functional profiling
     os.system("PM-select-taxa -l list.txt -o taxa.txt -L 5")  # Genus level
     os.system("PM-select-func -l list.txt -o func.txt -L 2")  # KEGG pathway level 2
 
-    # Load microbiome data for diversity analysis (directly from FASTQ files)
-    # Use the output files from Parallel-META profiling
+    # Load microbiome data for diversity analysis
     greengenes_file = f"Results_Greengenes/classification.txt"
     silva_file = f"Results_SILVA/classification.txt"
 
     # Load the data using appropriate methods for Parallel-META output
-    # (Replace this section with the specific loading method for Parallel-META's classification.txt files)
-    df_greengenes = load_greengenes_data(greengenes_file)  # Replace with actual loading
-    df_silva = load_silva_data(silva_file)  # Replace with actual loading
-
-    # Combine the data from both databases (if desired)
-    df = combine_data(df_greengenes, df_silva)  # Replace with actual combination
+    df_greengenes = load_greengenes_data(greengenes_file)
+    df_silva = load_silva_data(silva_file) 
+    df = combine_data(df_greengenes, df_silva) 
 
     # Data preprocessing
     min_abundance_threshold = 10
@@ -63,7 +57,7 @@ def main():
     alpha_diversity = diversity.alpha_diversity('shannon', df_rarefied.values.T)
     bc_dm = beta_diversity('braycurtis', df_rarefied.values.T)
 
-    #Principal Coordinate Analysis (PCoA) for Visualization
+#Principal Coordinate Analysis (PCoA) for Visualization
 pcoa = PCoA(bc_dm)
 pcoa.plot(df.sample_metadata, 'SampleType', cmap='viridis')
 
