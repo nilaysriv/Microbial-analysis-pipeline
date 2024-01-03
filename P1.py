@@ -1,27 +1,33 @@
-#Import FASTQ files using QIIME2
-from qiime2 import Artifact
+import os
+import subprocess
 
-raw_data = Artifact.import_data('SampleData[PairedEndSequences]', 'path/to/your/sequences.qza')
+def main():
+    """Main function to execute the pipeline."""
 
-Quality control using DADA2 in QIIME2
-from qiime2.plugins.dada2.methods import denoise_single
+    # Update and install prerequisites
+    os.system("sudo apt upgrade")
+    os.system("sudo apt update")
+    os.system("sudo apt install build-essential")
+    os.system("sudo apt install R-base-core")
 
-denoised_data = denoise_single(raw_data, trunc_len=150)
+    # Prompt for input files
+    fastq1 = input("Enter the first FASTQ file: ")
+    fastq2 = input("Enter the second FASTQ file: ")
 
-#Taxonomic profiling
-from qiime2.plugins.feature_classifier.methods import classify_sklearn
+    # Perform profiling with Greengenes and SILVA databases
+    for database in ("G", "S"):
+        output_dir = f"Results_{'Greengenes' if database == 'G' else 'SILVA'}"
+        os.system(f"PM-parallel-meta -R {fastq1} {fastq2} -o {output_dir} -l 150 -D {database}")
 
-classified_data = classify_sklearn(denoised_data, classifier='path/to/taxonomy_classifier.qza')
+    # Create list.txt with paths to classification.txt files
+    with open("list.txt", "w") as f:
+        for database in ("Greengenes", "SILVA"):
+            output_path = f"Results_{database}/classification.txt"
+            f.write(f"{database}\t{output_path}\n")
 
-#Differential abundance analysis using QIIME2
-from qiime2.plugins.feature_table.methods import differential_abundance
+    # Perform taxonomic classification and functional profiling
+    os.system("PM-select-taxa -l list.txt -o taxa.txt -L 5")  # Genus level
+    os.system("PM-select-func -l list.txt -o func.txt -L 2")  # KEGG pathway level 2
 
-diff_abundance_result = differential_abundance(classified_data, metadata='path/to/metadata.tsv')
-
-#Create a bar plot of taxonomic composition using QIIME2
-from qiime2.plugins.taxa.visualizers import barplot
-
-barplot(diff_abundance_result, taxonomy=classified_data, metadata='path/to/metadata.tsv')
-
-#Export results to a CSV file using Pandas
-diff_abundance_result.export_data('path/to/diff_abundance_results.csv')
+if __name__ == "__main__":
+    main()
